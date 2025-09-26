@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
           error: Color(0xFFEF4444),
           tertiary: Color(0xFFF59E0B),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
