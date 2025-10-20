@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -17,13 +19,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Insta Saver',
+      title: 'Facebook Saver',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFFE1306C),
-          secondary: Color(0xFF405DE6),
+          primary: Color(0xFF6366F1),
+          secondary: Color(0xFF10B981),
           surface: Color(0xFFFAFAFA),
           background: Color(0xFFF8FAFC),
           onPrimary: Colors.white,
@@ -31,12 +33,13 @@ class MyApp extends StatelessWidget {
           onSurface: Color(0xFF1F2937),
           onBackground: Color(0xFF374151),
           error: Color(0xFFEF4444),
-          tertiary: Color(0xFFF56040),
+          tertiary: Color(0xFFF59E0B),
         ),
-        cardTheme: CardTheme(
-          elevation: 2,
+        cardTheme: CardThemeData(
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
           color: Colors.white,
         ),
@@ -70,7 +73,7 @@ class MyApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE1306C), width: 2),
+            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
           ),
           labelStyle: TextStyle(color: Colors.grey.shade600),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -91,13 +94,13 @@ class Account {
   String email;
   String username;
   String password;
-  String auth_code;
+  String tfa;
 
   Account({
     required this.email,
     required this.username,
     required this.password,
-    required this.auth_code,
+    required this.tfa,
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
@@ -105,7 +108,7 @@ class Account {
       email: json['email'] ?? '',
       username: json['username'] ?? '',
       password: json['password'] ?? '',
-      auth_code: json['auth_code'] ?? '',
+      tfa: json['tfa'] ?? '',
     );
   }
 
@@ -114,7 +117,7 @@ class Account {
       'email': email,
       'username': username,
       'password': password,
-      'auth_code': auth_code,
+      'tfa': tfa,
     };
   }
 }
@@ -132,15 +135,15 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   int? _editingIndex;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _auth_codeController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _tfaController = TextEditingController();
   final TextEditingController _importController = TextEditingController();
-  final TextEditingController _prefixController = TextEditingController();
   late SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadData();
   }
 
@@ -155,13 +158,13 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     }
     _emailController.text = _prefs.getString('email') ?? '';
     _usernameController.text = _prefs.getString('username') ?? '';
-    _auth_codeController.text = _prefs.getString('auth_code') ?? '';
-    _prefixController.text = _prefs.getString('prefix') ?? '';
+    _passwordController.text = _prefs.getString('password') ?? '';
+    _tfaController.text = _prefs.getString('tfa') ?? '';
 
     _emailController.addListener(() => _prefs.setString('email', _emailController.text));
     _usernameController.addListener(() => _prefs.setString('username', _usernameController.text));
-    _auth_codeController.addListener(() => _prefs.setString('auth_code', _auth_codeController.text));
-    _prefixController.addListener(() => _prefs.setString('prefix', _prefixController.text));
+    _passwordController.addListener(() => _prefs.setString('password', _passwordController.text));
+    _tfaController.addListener(() => _prefs.setString('tfa', _tfaController.text));
   }
 
   Future<void> _saveAccounts() async {
@@ -169,19 +172,40 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     await _prefs.setString('accounts', accountsJson);
   }
 
-  String get _currentPassword {
-    final String prefix = _prefixController.text.trim();
-    final String day = DateTime.now().day.toString();
-    return prefix.isNotEmpty ? '$prefix@$day' : '@$day';
+  void _generatePassword() {
+    const String lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const String uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    final Random random = Random();
+    
+    // Generate random length between 13-15 characters (including day)
+    final int baseLength = 11 + random.nextInt(3); // 11-13 chars + "26" = 13-15 total
+    final int day = DateTime.now().day;
+    
+    // Mix of lowercase and uppercase letters
+    String password = '';
+    for (int i = 0; i < baseLength; i++) {
+      if (random.nextBool()) {
+        password += lowercase[random.nextInt(lowercase.length)];
+      } else {
+        password += uppercase[random.nextInt(uppercase.length)];
+      }
+    }
+    
+    // Add day at the end
+    password += day.toString();
+    
+    setState(() {
+      _passwordController.text = password;
+    });
   }
 
   void _copyPassword() {
-    Clipboard.setData(ClipboardData(text: _currentPassword));
+    Clipboard.setData(ClipboardData(text: _passwordController.text));
     _showSnackBar('Password copied to clipboard', Icons.content_copy);
   }
 
   void _submit() {
-    if (_emailController.text.isEmpty || _usernameController.text.isEmpty || _prefixController.text.isEmpty) {
+    if (_emailController.text.isEmpty || _usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       _showSnackBar('Please fill in all required fields', Icons.error, isError: true);
       return;
     }
@@ -189,8 +213,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     final Account newAccount = Account(
       email: _emailController.text,
       username: _usernameController.text,
-      password: _currentPassword,
-      auth_code: _auth_codeController.text,
+      password: _passwordController.text,
+      tfa: _tfaController.text,
     );
     setState(() {
       if (_editingIndex != null) {
@@ -208,7 +232,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   void _clearFields() {
     _emailController.clear();
     _usernameController.clear();
-    _auth_codeController.clear();
+    _passwordController.clear();
+    _tfaController.clear();
   }
 
   void _showSnackBar(String message, IconData icon, {bool isError = false}) {
@@ -218,10 +243,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           children: [
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Text(message),
           ],
         ),
-        backgroundColor: isError ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary,
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.secondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -234,17 +259,17 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     if (status.isGranted) {
       final Directory? baseDir = await getExternalStorageDirectory();
       if (baseDir != null) {
-        final String downloadPath = '/storage/emulated/0/Download/insta_saver';
+        final String downloadPath = '/storage/emulated/0/Download/fb_saver';
         final Directory dir = Directory(downloadPath);
         if (!await dir.exists()) {
           await dir.create(recursive: true);
         }
         final String dateTime = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-        final String filePath = '$downloadPath/instagram_accounts_$dateTime.json';
+        final String filePath = '$downloadPath/facebook_accounts_$dateTime.json';
         final File file = File(filePath);
         final String jsonData = jsonEncode(_accounts.map((acc) => acc.toJson()).toList());
         await file.writeAsString(jsonData);
-        _showSnackBar('Downloaded to Downloads/insta_saver', Icons.download);
+        _showSnackBar('Downloaded to $filePath', Icons.download);
       }
     } else {
       _showSnackBar('Storage permission denied', Icons.error, isError: true);
@@ -271,8 +296,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       _editingIndex = index;
       _emailController.text = _accounts[index].email;
       _usernameController.text = _accounts[index].username;
-      _auth_codeController.text = _accounts[index].auth_code;
-      _prefixController.text = _accounts[index].password.split('@').first;
+      _passwordController.text = _accounts[index].password;
+      _tfaController.text = _accounts[index].tfa;
     });
     _tabController.animateTo(0);
   }
@@ -361,17 +386,14 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
               height: 40,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.tertiary!,
-                  ],
+                  colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.secondary],
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.camera_alt, color: Colors.white, size: 24),
+              child: const Icon(Icons.security, color: Colors.white, size: 24),
             ),
             const SizedBox(width: 12),
-            const Text('Insta Saver', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Facebook Saver', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         bottom: TabBar(
@@ -380,11 +402,10 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           labelColor: Theme.of(context).colorScheme.primary,
           unselectedLabelColor: Colors.grey,
           indicatorWeight: 3,
-          tabs: const [
-            Tab(icon: Icon(Icons.add), text: 'Input'),
-            Tab(icon: Icon(Icons.swap_vert), text: 'Import/Export'),
-            Tab(icon: Icon(Icons.list), text: 'Saved'),
-            Tab(icon: Icon(Icons.settings), text: 'Settings'),
+          tabs: [
+            const Tab(icon: Icon(Icons.add), text: 'Input'),
+            const Tab(icon: Icon(Icons.swap_vert), text: 'Import/Export'),
+            Tab(icon: Icon(Icons.list), text: 'Saved (${_accounts.length})'),
           ],
         ),
       ),
@@ -393,7 +414,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
         children: [
           // Tab 1: Input
           SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -401,9 +422,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.tertiary!.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.tertiary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Theme.of(context).colorScheme.tertiary!.withOpacity(0.3)),
+                      border: Border.all(color: Theme.of(context).colorScheme.tertiary.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
@@ -416,16 +437,16 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                       ],
                     ),
                   ),
-                if (_editingIndex != null) const SizedBox(height: 16),
+                if (_editingIndex != null) const SizedBox(height: 20),
                 
                 _buildInputField(_emailController, 'Email Address', Icons.email),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 _buildInputField(_usernameController, 'Username', Icons.person),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 _buildPasswordField(),
-                const SizedBox(height: 16),
-                _buildInputField(_auth_codeController, '2FA Code (Optional)', Icons.security),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+                _buildInputField(_tfaController, '2FA Code (Optional)', Icons.security),
+                const SizedBox(height: 32),
                 Row(
                   children: [
                     Expanded(
@@ -436,7 +457,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                       ),
                     ),
@@ -446,7 +466,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey.shade100,
                         foregroundColor: Colors.grey.shade700,
-                        padding: const EdgeInsets.all(16),
                       ),
                       child: const Icon(Icons.clear),
                     ),
@@ -458,7 +477,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           
           // Tab 2: Import/Export
           SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -542,14 +561,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
           Column(
             children: [
               if (_accounts.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200),
-                    ),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
                       Expanded(
@@ -563,7 +576,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.error,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                     ],
@@ -586,7 +599,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _accounts.length,
                         itemBuilder: (context, i) {
                           final int accountIndex = _accounts.length - 1 - i;
@@ -594,7 +607,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: Padding(
-                              padding: const EdgeInsets.all(16.0),
+                              padding: const EdgeInsets.all(20.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -618,7 +631,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
@@ -634,20 +647,20 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                             Expanded(child: Text('Password: ${acc.password}')),
                                           ],
                                         ),
-                                        if (acc.auth_code.isNotEmpty) ...[
+                                        if (acc.tfa.isNotEmpty) ...[
                                           const SizedBox(height: 8),
                                           Row(
                                             children: [
                                               const Icon(Icons.security, size: 16),
                                               const SizedBox(width: 8),
-                                              Expanded(child: Text('2FA: ${acc.auth_code}')),
+                                              Expanded(child: Text('2FA: ${acc.tfa}')),
                                             ],
                                           ),
                                         ],
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
@@ -680,94 +693,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
               ),
             ],
           ),
-
-          // Tab 4: Settings
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.password, color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(width: 8),
-                            const Text('Password Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: _prefixController,
-                          decoration: InputDecoration(
-                            labelText: 'Password Prefix',
-                            hintText: 'Enter your password prefix',
-                            prefixIcon: Icon(Icons.text_fields, color: Theme.of(context).colorScheme.primary),
-                            suffixIcon: IconButton(
-                              icon: const Icon(Icons.content_copy),
-                              onPressed: _copyPassword,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Current Password Format:', 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey.shade700,
-                                )),
-                              const SizedBox(height: 4),
-                              Text('${_prefixController.text.isNotEmpty ? _prefixController.text : '(prefix)'}@${DateTime.now().day}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 8),
-                              Text('Example: If prefix is "Yaseen" and today is ${DateTime.now().day}, password will be: Yaseen@${DateTime.now().day}',
-                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.info, color: Theme.of(context).colorScheme.secondary),
-                            const SizedBox(width: 8),
-                            const Text('About', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text('Insta Saver v1.0', 
-                          style: TextStyle(color: Colors.grey.shade600)),
-                        const SizedBox(height: 4),
-                        Text('Secure Instagram account manager', 
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -784,45 +709,38 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   }
 
   Widget _buildPasswordField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text('Password', style: TextStyle(
-          color: Colors.grey.shade700,
-          fontSize: 16,
-        )),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Text(
-                  _currentPassword,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ),
+        Expanded(
+          child: TextField(
+            controller: _passwordController,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.primary),
             ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: _copyPassword,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.all(16),
-              ),
-              child: const Icon(Icons.content_copy),
-            ),
-          ],
+            obscureText: false,
+          ),
         ),
-        const SizedBox(height: 4),
-        Text('Format: (prefix)@(today\'s date) • Today is ${DateTime.now().day}',
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: _generatePassword,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.all(16),
+          ),
+          child: const Icon(Icons.refresh),
+        ),
+        const SizedBox(width: 4),
+        ElevatedButton(
+          onPressed: _copyPassword,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.all(16),
+          ),
+          child: const Icon(Icons.content_copy),
+        ),
       ],
     );
   }
@@ -832,9 +750,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     _tabController.dispose();
     _emailController.dispose();
     _usernameController.dispose();
-    _auth_codeController.dispose();
+    _passwordController.dispose();
+    _tfaController.dispose();
     _importController.dispose();
-    _prefixController.dispose();
     super.dispose();
   }
 }
