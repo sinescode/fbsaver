@@ -37,8 +37,8 @@ jobs:
     # 6️⃣ Rename APKs
     - name: Rename APKs
       run: |
-        mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/totp-arm64.apk
-        mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/totp-armv7a.apk
+        mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/fbsaverV2-arm64.apk
+        mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/fbsaverV2-armv7a.apk
 
     # 7️⃣ Upload APKs
     - name: Upload APKs
@@ -46,5 +46,5 @@ jobs:
       with:
         name: release-apks
         path: |
-          build/app/outputs/flutter-apk/totp-arm64.apk
-          build/app/outputs/flutter-apk/totp-armv7a.apk
+          build/app/outputs/flutter-apk/fbsaverV2-arm64.apk
+          build/app/outputs/flutter-apk/fbsaverV2-armv7a.apk
