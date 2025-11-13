@@ -247,17 +247,17 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     if (status.isGranted) {
       final Directory? baseDir = await getExternalStorageDirectory();
       if (baseDir != null) {
-        final String downloadPath = '/storage/emulated/0/Download/insta_saver';
+        final String downloadPath = '/storage/emulated/0/Download/fb_saver';
         final Directory dir = Directory(downloadPath);
         if (!await dir.exists()) {
           await dir.create(recursive: true);
         }
         final String dateTime = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-        final String filePath = '$downloadPath/instagram_accounts_$dateTime.json';
+        final String filePath = '$downloadPath/fb_accounts_$dateTime.json';
         final File file = File(filePath);
         final String jsonData = jsonEncode(_accounts.map((acc) => acc.toJson()).toList());
         await file.writeAsString(jsonData);
-        _showSnackBar('Downloaded to Downloads/insta_saver', Icons.download);
+        _showSnackBar('Downloaded to Downloads/fb_saver', Icons.download);
       }
     } else {
       _showSnackBar('Storage permission denied', Icons.error, isError: true);
