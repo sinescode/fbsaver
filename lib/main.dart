@@ -138,7 +138,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     _loadData();
   }
   Future<void> _loadData() async {
-    _prefs = await SharedPreferences.getFBnce();
+    _prefs = await SharedPreferences.getInstance();
     final String? accountsJson = _prefs.getString('accounts');
     if (accountsJson != null) {
       final List<dynamic> decoded = jsonDecode(accountsJson);
