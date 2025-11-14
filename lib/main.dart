@@ -88,19 +88,19 @@ class Account {
   String email;
   String username;
   String password;
-  String tfa;
+  String auth_code;
   Account({
     required this.email,
     required this.username,
     required this.password,
-    required this.tfa,
+    required this.auth_code,
   });
   factory Account.fromJson(Map<String, dynamic> json) {
     return Account(
       email: json['email'] ?? '',
       username: json['username'] ?? '',
       password: json['password'] ?? '',
-      tfa: json['tfa'] ?? '',
+      auth_code: json['auth_code'] ?? '',
     );
   }
   Map<String, dynamic> toJson() {
@@ -108,7 +108,7 @@ class Account {
       'email': email,
       'username': username,
       'password': password,
-      'tfa': tfa,
+      'auth_code': auth_code,
     };
   }
 }
@@ -123,7 +123,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   int? _editingIndex;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _tfaController = TextEditingController();
+  final TextEditingController _auth_codeController = TextEditingController();
   final TextEditingController _importController = TextEditingController();
   final TextEditingController _prefixController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -138,7 +138,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     _loadData();
   }
   Future<void> _loadData() async {
-    _prefs = await SharedPreferences.getInstance();
+    _prefs = await SharedPreferences.getFBnce();
     final String? accountsJson = _prefs.getString('accounts');
     if (accountsJson != null) {
       final List<dynamic> decoded = jsonDecode(accountsJson);
@@ -149,8 +149,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
    
     _emailController.text = _prefs.getString('email') ?? '';
     _usernameController.text = _prefs.getString('username') ?? '';
-    _tfaController.text = _prefs.getString('tfa') ?? '';
+    _auth_codeController.text = _prefs.getString('auth_code') ?? '';
     _prefixController.text = _prefs.getString('prefix') ?? '';
+    _passwordController.text = _prefs.getString('random_password') ?? '';
     _showEmailInput = _prefs.getBool('show_email_input') ?? true;
     _passwordMethod = _prefs.getInt('password_method') ?? 0;
     if (_passwordMethod == 1 && _passwordController.text.isEmpty) {
@@ -158,8 +159,9 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     }
     _emailController.addListener(() => _prefs.setString('email', _emailController.text));
     _usernameController.addListener(() => _prefs.setString('username', _usernameController.text));
-    _tfaController.addListener(() => _prefs.setString('tfa', _tfaController.text));
+    _auth_codeController.addListener(() => _prefs.setString('auth_code', _auth_codeController.text));
     _prefixController.addListener(() => _prefs.setString('prefix', _prefixController.text));
+    _passwordController.addListener(() => _prefs.setString('random_password', _passwordController.text));
   }
   Future<void> _saveAccounts() async {
     final String accountsJson = jsonEncode(_accounts.map((acc) => acc.toJson()).toList());
@@ -202,7 +204,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       email: _emailController.text,
       username: _usernameController.text,
       password: _currentPassword,
-      tfa: _tfaController.text,
+      auth_code: _auth_codeController.text,
     );
     setState(() {
       if (_editingIndex != null) {
@@ -219,7 +221,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   void _clearFields() {
     _emailController.clear();
     _usernameController.clear();
-    _tfaController.clear();
+    _auth_codeController.clear();
     _passwordController.clear();
     if (_passwordMethod == 1) {
       _generateRandomPassword();
@@ -282,7 +284,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       _editingIndex = index;
       _emailController.text = _accounts[index].email;
       _usernameController.text = _accounts[index].username;
-      _tfaController.text = _accounts[index].tfa;
+      _auth_codeController.text = _accounts[index].auth_code;
      
       // Detect password method and set appropriate controller
       final String password = _accounts[index].password;
@@ -444,7 +446,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                 const SizedBox(height: 12),
                 _buildPasswordField(),
                 const SizedBox(height: 12),
-                _buildInputField(_tfaController, '2FA Code (Optional)', Icons.security),
+                _buildInputField(_auth_codeController, '2FA Code (Optional)', Icons.security),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -656,13 +658,13 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                                             Expanded(child: Text('Password: ${acc.password}', style: const TextStyle(fontSize: 13))),
                                           ],
                                         ),
-                                        if (acc.tfa.isNotEmpty) ...[
+                                        if (acc.auth_code.isNotEmpty) ...[
                                           const SizedBox(height: 6),
                                           Row(
                                             children: [
                                               const Icon(Icons.security, size: 14),
                                               const SizedBox(width: 6),
-                                              Expanded(child: Text('2FA: ${acc.tfa}', style: const TextStyle(fontSize: 13))),
+                                              Expanded(child: Text('2FA: ${acc.auth_code}', style: const TextStyle(fontSize: 13))),
                                             ],
                                           ),
                                         ],
@@ -815,7 +817,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
                         Text('FB Saver v2.0',
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
                         const SizedBox(height: 2),
-                        Text('Secure Facebook account manager',
+                        Text('Secure FBgram account manager',
                           style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                       ],
                     ),
@@ -992,7 +994,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     _tabController.dispose();
     _emailController.dispose();
     _usernameController.dispose();
-    _tfaController.dispose();
+    _auth_codeController.dispose();
     _importController.dispose();
     _prefixController.dispose();
     _passwordController.dispose();
